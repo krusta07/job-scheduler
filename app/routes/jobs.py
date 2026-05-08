@@ -111,6 +111,17 @@ async def get_workers(
         ]
     }
 
+@router.get("/breakers/status")
+async def get_breaker_status():
+    from app.distributed.circuit_breaker import email_breaker, image_breaker, pdf_breaker
+    return {
+        "breakers": {
+            "email": email_breaker.get_status(),
+            "image": image_breaker.get_status(),
+            "pdf": pdf_breaker.get_status()
+        }
+    }
+
 @router.get("/{job_id}")
 async def get_job(
     job_id: int,
