@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from typing import Optional
 from app.db.postgres import get_db
 import asyncpg
-from app.queue.redis_queue import push_job
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -12,36 +11,27 @@ class JobCreate(BaseModel):
     priority: str = "medium"
     payload: Optional[dict] = {}
 
-class JobResponse(BaseModel):
-    id: int
-    type: str
-    status: str
-    priority: str
-    payload: Optional[dict]
-    worker_id: Optional[str]
-    retries: int
-    created_at: str
-
 @router.post("/", status_code=201)
 async def create_job(
     job: JobCreate,
     db: asyncpg.Connection = Depends(get_db)
 ):
-    allowed_types = ["send_email", "resize_image", "generate_pdf"]
+    allowed_types = ["send_email", "resize_image", "generate_pdf", "process_report"]
     if job.type not in allowed_types:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid job type. Allowed: {allowed_types}"
+            detail="Invalid job type. Allowed: " + str(allowed_types)
         )
 
     allowed_priorities = ["high", "medium", "low"]
     if job.priority not in allowed_priorities:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid priority. Allowed: {allowed_priorities}"
+            detail="Invalid priority. Allowed: " + str(allowed_priorities)
         )
 
     import json
+    from app.queue.redis_queue import push_job
 
     row = await db.fetchrow("""
         INSERT INTO jobs (type, priority, payload, status)
@@ -72,16 +62,14 @@ async def list_jobs(
         rows = await db.fetch("""
             SELECT id, type, status, priority,
                    worker_id, retries, created_at, finished_at
-            FROM jobs
-            WHERE status = $1
+            FROM jobs WHERE status = $1
             ORDER BY created_at DESC
         """, status)
     else:
         rows = await db.fetch("""
             SELECT id, type, status, priority,
                    worker_id, retries, created_at, finished_at
-            FROM jobs
-            ORDER BY created_at DESC
+            FROM jobs ORDER BY created_at DESC
         """)
 
     return {
@@ -101,6 +89,28 @@ async def list_jobs(
         ]
     }
 
+@router.get("/workers/status")
+async def get_workers(
+    db: asyncpg.Connection = Depends(get_db)
+):
+    rows = await db.fetch("""
+        SELECT id, status, last_seen,
+               jobs_completed, registered_at
+        FROM workers ORDER BY id
+    """)
+    return {
+        "total_workers": len(rows),
+        "workers": [
+            {
+                "id": row["id"],
+                "status": row["status"],
+                "last_seen": str(row["last_seen"]),
+                "jobs_completed": row["jobs_completed"]
+            }
+            for row in rows
+        ]
+    }
+
 @router.get("/{job_id}")
 async def get_job(
     job_id: int,
@@ -113,7 +123,7 @@ async def get_job(
     if not row:
         raise HTTPException(
             status_code=404,
-            detail=f"Job {job_id} not found"
+            detail="Job " + str(job_id) + " not found"
         )
 
     return {
@@ -143,42 +153,17 @@ async def cancel_job(
     if not row:
         raise HTTPException(
             status_code=404,
-            detail=f"Job {job_id} not found"
+            detail="Job " + str(job_id) + " not found"
         )
 
     if row["status"] != "pending":
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot cancel job with status '{row['status']}'"
+            detail="Cannot cancel job with status " + row["status"]
         )
 
     await db.execute("""
-        UPDATE jobs SET status = 'cancelled'
-        WHERE id = $1
+        UPDATE jobs SET status = 'cancelled' WHERE id = $1
     """, job_id)
 
-    return {"message": f"Job {job_id} cancelled successfully!"}
-
-@router.get("/workers/status")
-async def get_workers(
-    db: asyncpg.Connection = Depends(get_db)
-):
-    rows = await db.fetch("""
-        SELECT id, status, last_seen,
-               jobs_completed, registered_at
-        FROM workers
-        ORDER BY id
-    """)
-
-    return {
-        "total_workers": len(rows),
-        "workers": [
-            {
-                "id": row["id"],
-                "status": row["status"],
-                "last_seen": str(row["last_seen"]),
-                "jobs_completed": row["jobs_completed"]
-            }
-            for row in rows
-        ]
-    }
+    return {"message": "Job " + str(job_id) + " cancelled successfully!"}

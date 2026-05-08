@@ -8,50 +8,35 @@ load_dotenv()
 WORKER_ID = os.getenv("WORKER_ID", "worker_1")
 
 async def connect_db():
-    """
-    Keep trying to connect to DB
-    until it's ready!
-    Workers start before app sometimes
-    so we need to wait patiently
-    """
     import asyncpg
     for i in range(10):
         try:
-            print(f"🔌 Trying DB connection... ({i+1}/10)")
+            print("🔌 Trying DB connection... (" + str(i+1) + "/10)")
             pool = await asyncpg.create_pool(
                 dsn=os.getenv("DATABASE_URL"),
                 min_size=2,
                 max_size=5
             )
-            print(f"✅ Connected to DB!")
+            print("✅ Connected to DB!")
             return pool
         except Exception as e:
-            print(f"❌ DB not ready: {e}")
+            print("❌ DB not ready: " + str(e))
             await asyncio.sleep(3)
     raise Exception("Could not connect to DB after 10 tries!")
 
 async def wait_for_tables(db_pool):
-    """
-    Wait until app has created the tables
-    App creates tables on startup
-    Workers must wait for this!
-    """
     for i in range(20):
         try:
             async with db_pool.acquire() as conn:
                 await conn.fetchval("SELECT 1 FROM workers LIMIT 1")
-            print(f"✅ Tables are ready!")
+            print("✅ Tables are ready!")
             return
         except Exception:
-            print(f"⏳ Waiting for tables to be created... ({i+1}/20)")
+            print("⏳ Waiting for tables... (" + str(i+1) + "/20)")
             await asyncio.sleep(3)
     raise Exception("Tables never created!")
 
 async def register_worker(db_pool):
-    """
-    Register this worker in database when it starts
-    So scheduler knows it exists!
-    """
     async with db_pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO workers (id, status, last_seen)
@@ -59,14 +44,9 @@ async def register_worker(db_pool):
             ON CONFLICT (id)
             DO UPDATE SET status = 'online', last_seen = NOW()
         """, WORKER_ID)
-    print(f"✅ Worker {WORKER_ID} registered in database!")
+    print("✅ Worker " + WORKER_ID + " registered!")
 
 async def send_heartbeat(db_pool):
-    """
-    Send heartbeat every 5 seconds
-    Tells scheduler I'm still alive!
-    If heartbeat stops → worker marked DEAD
-    """
     while True:
         try:
             async with db_pool.acquire() as conn:
@@ -76,31 +56,21 @@ async def send_heartbeat(db_pool):
                     WHERE id = $1
                 """, WORKER_ID)
         except Exception as e:
-            print(f"❌ Heartbeat failed: {e}")
+            print("❌ Heartbeat failed: " + str(e))
         await asyncio.sleep(5)
 
 async def execute_job(job_id: int, db_pool):
-    """
-    Main job execution function
-    1. Fetch job from DB
-    2. Mark as RUNNING
-    3. Execute based on type
-    4. Mark as COMPLETED or FAILED
-    """
     async with db_pool.acquire() as conn:
-
-        # Step 1 - Get job details
         job = await conn.fetchrow("""
             SELECT * FROM jobs WHERE id = $1
         """, job_id)
 
         if not job:
-            print(f"❌ Job {job_id} not found!")
+            print("❌ Job " + str(job_id) + " not found!")
             return
 
-        print(f"🔄 Worker {WORKER_ID} executing job {job_id} ({job['type']})")
+        print("🔄 Worker " + WORKER_ID + " executing job " + str(job_id) + " (" + job["type"] + ")")
 
-        # Step 2 - Mark as RUNNING
         await conn.execute("""
             UPDATE jobs
             SET status = 'running',
@@ -109,7 +79,6 @@ async def execute_job(job_id: int, db_pool):
             WHERE id = $2
         """, WORKER_ID, job_id)
 
-        # Step 3 - Execute based on type
         try:
             payload = json.loads(job["payload"]) if job["payload"] else {}
             result = None
@@ -126,7 +95,12 @@ async def execute_job(job_id: int, db_pool):
                 from app.jobs.pdf import execute_pdf_job
                 result = await execute_pdf_job(payload)
 
-            # Step 4 - Mark as COMPLETED
+            elif job["type"] == "process_report":
+                from app.distributed.saga import execute_saga_job
+                print("🎯 Calling saga executor...")
+                result = await execute_saga_job(payload, conn)
+                print("🎯 Saga returned: " + str(result))
+
             await conn.execute("""
                 UPDATE jobs
                 SET status = 'completed',
@@ -141,14 +115,14 @@ async def execute_job(job_id: int, db_pool):
                 WHERE id = $1
             """, WORKER_ID)
 
-            print(f"✅ Job {job_id} completed! Result: {result}")
+            print("✅ Job " + str(job_id) + " completed! Result: " + str(result))
 
         except Exception as e:
-            print(f"❌ Job {job_id} failed: {e}")
+            print("❌ Job " + str(job_id) + " failed: " + str(e))
             retries = job["retries"] + 1
 
             if retries < job["max_retries"]:
-                print(f"🔁 Retrying job {job_id} (attempt {retries}/{job['max_retries']})")
+                print("🔁 Retrying job " + str(job_id))
                 await conn.execute("""
                     UPDATE jobs
                     SET status = 'pending',
@@ -166,35 +140,28 @@ async def execute_job(job_id: int, db_pool):
                         finished_at = NOW()
                     WHERE id = $2
                 """, str(e), job_id)
-                print(f"💀 Job {job_id} permanently failed!")
+                print("💀 Job " + str(job_id) + " permanently failed!")
 
 async def main():
     from app.queue.redis_queue import pop_job
 
-    print(f"🚀 Worker {WORKER_ID} starting...")
+    print("🚀 Worker " + WORKER_ID + " starting...")
 
-    # Connect to DB with retries
     db_pool = await connect_db()
-
-    # Wait for app to create tables
     await wait_for_tables(db_pool)
-
-    # Register this worker
     await register_worker(db_pool)
 
-    # Start heartbeat in background
     asyncio.create_task(send_heartbeat(db_pool))
 
-    print(f"👀 Worker {WORKER_ID} waiting for jobs...")
+    print("👀 Worker " + WORKER_ID + " waiting for jobs...")
 
-    # Main polling loop
     while True:
         try:
             job_id = await pop_job()
             if job_id:
                 await execute_job(job_id, db_pool)
         except Exception as e:
-            print(f"❌ Worker error: {e}")
+            print("❌ Worker error: " + str(e))
             await asyncio.sleep(1)
 
 if __name__ == "__main__":
