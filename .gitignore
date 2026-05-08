@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .DS_Store
 postgres_data/
+app/uploads/*
+app/outputs/*
+!app/uploads/.gitkeep
+!app/outputs/.gitkeep
