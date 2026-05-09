@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Scheduler Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f0f;
+            color: #ffffff;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: #00d4ff;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .cards {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            min-width: 180px;
+            border: 1px solid #333;
+        }
+
+        .card h3 {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .card .value {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .online { color: #00ff88; }
+        .offline { color: #ff4444; }
+        .closed { color: #00ff88; }
+        .open { color: #ff4444; }
+        .half_open { color: #ffaa00; }
+        .completed { color: #00ff88; }
+        .failed { color: #ff4444; }
+        .running { color: #00d4ff; }
+        .pending { color: #ffaa00; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th {
+            background: #222;
+            padding: 12px 15px;
+            text-align: left;
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-top: 1px solid #222;
+            font-size: 14px;
+        }
+
+        tr:hover { background: #222; }
+
+        .submit-form {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #333;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        select, input {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        button {
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover { background: #00b8d9; }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .dot-green { background: #00ff88; }
+        .dot-red { background: #ff4444; }
+        .dot-yellow { background: #ffaa00; }
+        .dot-blue { background: #00d4ff; }
+
+        .last-updated {
+            text-align: center;
+            color: #444;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        .api-key-input {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 15px 20px;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .api-key-input label {
+            color: #888;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚀 Distributed Job Scheduler</h1>
+
+    <div class="api-key-input">
+        <label>🔑 API Key:</label>
+        <input type="password" id="apiKey" placeholder="Enter your API key to submit jobs" />
+    </div>
+
+    <div class="section">
+        <h2>👷 Workers</h2>
+        <div class="cards" id="workers">
+            <div class="card"><h3>Loading...</h3></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>⚡ Circuit Breakers</h2>
+        <div class="cards" id="breakers">
+            <div class="card"><h3>Loading...</h3></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📬 Job Queue</h2>
+        <div class="cards" id="queue">
+            <div class="card"><h3>Loading...</h3></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Submit New Job</h2>
+        <div class="submit-form">
+            <div class="form-row">
+                <select id="jobType">
+                    <option value="send_email">Send Email</option>
+                    <option value="resize_image">Resize Image</option>
+                    <option value="generate_pdf">Generate PDF</option>
+                    <option value="process_report">Process Report (Saga)</option>
+                </select>
+                <select id="jobPriority">
+                    <option value="high">High Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="low">Low Priority</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <input type="text" id="jobEmail" placeholder="Email address" />
+                <input type="text" id="jobTitle" placeholder="Title (for PDF/Report)" />
+            </div>
+            <button onclick="submitJob()">Submit Job</button>
+            <span id="submitResult" style="margin-left:15px; font-size:14px;"></span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🕐 Recent Jobs</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Worker</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody id="jobsTable">
+                <tr><td colspan="5">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
+
+<script>
+    async function fetchData() {
+        try {
+            const workers = await fetch("/jobs/workers/status").then(r => r.json())
+            const breakers = await fetch("/jobs/breakers/status").then(r => r.json())
+            const jobs = await fetch("/jobs/").then(r => r.json())
+            const queue = await fetch("/queue/lengths").then(r => r.json())
+
+            updateWorkers(workers)
+            updateBreakers(breakers)
+            updateJobs(jobs)
+            updateQueue(queue)
+
+            document.getElementById("lastUpdated").textContent = new Date().toLocaleTimeString()
+        } catch(e) {
+            console.error("Error fetching data:", e)
+        }
+    }
+
+    function updateWorkers(data) {
+        const container = document.getElementById("workers")
+        container.innerHTML = data.workers.map(w => {
+            const isOnline = w.status === "online"
+            const dot = isOnline ? "dot-green" : "dot-red"
+            const cls = isOnline ? "online" : "offline"
+            return `
+                <div class="card">
+                    <h3><span class="status-dot ${dot}"></span>${w.id}</h3>
+                    <div class="value ${cls}">${w.status.toUpperCase()}</div>
+                    <div style="color:#888; font-size:13px; margin-top:8px">
+                        Jobs completed: ${w.jobs_completed}
+                    </div>
+                </div>
+            `
+        }).join("")
+    }
+
+    function updateBreakers(data) {
+        const container = document.getElementById("breakers")
+        container.innerHTML = Object.entries(data.breakers).map(([name, b]) => {
+            const cls = b.state === "CLOSED" ? "closed" : b.state === "OPEN" ? "open" : "half_open"
+            const dot = b.state === "CLOSED" ? "dot-green" : b.state === "OPEN" ? "dot-red" : "dot-yellow"
+            return `
+                <div class="card">
+                    <h3><span class="status-dot ${dot}"></span>${name.toUpperCase()} Service</h3>
+                    <div class="value ${cls}">${b.state}</div>
+                    <div style="color:#888; font-size:13px; margin-top:8px">
+                        Failures: ${b.failure_count}/${b.threshold}
+                    </div>
+                </div>
+            `
+        }).join("")
+    }
+
+    function updateQueue(data) {
+        const container = document.getElementById("queue")
+        container.innerHTML = `
+            <div class="card">
+                <h3><span class="status-dot dot-red"></span>High Priority</h3>
+                <div class="value">${data.high || 0} jobs</div>
+            </div>
+            <div class="card">
+                <h3><span class="status-dot dot-yellow"></span>Medium Priority</h3>
+                <div class="value">${data.medium || 0} jobs</div>
+            </div>
+            <div class="card">
+                <h3><span class="status-dot dot-green"></span>Low Priority</h3>
+                <div class="value">${data.low || 0} jobs</div>
+            </div>
+        `
+    }
+
+    function updateJobs(data) {
+        const tbody = document.getElementById("jobsTable")
+        const jobs = data.jobs.slice(0, 10)
+        tbody.innerHTML = jobs.map(j => {
+            const cls = j.status === "completed" ? "completed" :
+                        j.status === "failed" ? "failed" :
+                        j.status === "running" ? "running" : "pending"
+            const dot = j.status === "completed" ? "dot-green" :
+                        j.status === "failed" ? "dot-red" :
+                        j.status === "running" ? "dot-blue" : "dot-yellow"
+            return `
+                <tr>
+                    <td>#${j.id}</td>
+                    <td>${j.type}</td>
+                    <td><span class="status-dot ${dot}"></span><span class="${cls}">${j.status}</span></td>
+                    <td>${j.worker_id || "-"}</td>
+                    <td>${new Date(j.created_at).toLocaleTimeString()}</td>
+                </tr>
+            `
+        }).join("")
+    }
+
+    async function submitJob() {
+        const apiKey = document.getElementById("apiKey").value
+        const type = document.getElementById("jobType").value
+        const priority = document.getElementById("jobPriority").value
+        const email = document.getElementById("jobEmail").value
+        const title = document.getElementById("jobTitle").value
+        const result = document.getElementById("submitResult")
+
+        if (!apiKey) {
+            result.style.color = "#ff4444"
+            result.textContent = "Please enter API key!"
+            return
+        }
+
+        const payload = {}
+        if (email) payload.email = email
+        if (title) payload.title = title
+        if (type === "resize_image") payload.filename = "test.jpg"
+
+        try {
+            const response = await fetch("/jobs/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": apiKey
+                },
+                body: JSON.stringify({ type, priority, payload })
+            })
+
+            const data = await response.json()
+
+            if (response.ok) {
+                result.style.color = "#00ff88"
+                result.textContent = "Job #" + data.job.id + " submitted!"
+                fetchData()
+            } else {
+                result.style.color = "#ff4444"
+                result.textContent = data.detail || "Error!"
+            }
+        } catch(e) {
+            result.style.color = "#ff4444"
+            result.textContent = "Failed to submit!"
+        }
+    }
+
+    fetchData()
+    setInterval(fetchData, 2000)
+</script>
+
+</body>
+</html>
