@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional
 from app.db.postgres import get_db
 import asyncpg
+import os
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -11,10 +12,18 @@ class JobCreate(BaseModel):
     priority: str = "medium"
     payload: Optional[dict] = {}
 
+async def verify_api_key(x_api_key: str = Header(None)):
+    if x_api_key != os.getenv("API_KEY"):
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid API key! Add X-API-Key header!"
+        )
+
 @router.post("/", status_code=201)
 async def create_job(
     job: JobCreate,
-    db: asyncpg.Connection = Depends(get_db)
+    db: asyncpg.Connection = Depends(get_db),
+    api_key: None = Depends(verify_api_key)
 ):
     allowed_types = ["send_email", "resize_image", "generate_pdf", "process_report"]
     if job.type not in allowed_types:

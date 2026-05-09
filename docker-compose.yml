@@ -10,31 +10,54 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d jobscheduler"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   app:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://admin:password@postgres:5432/jobscheduler
-      REDIS_URL: redis://redis:6379
-    volumes:
-      - .:/app
+      - DATABASE_URL=postgresql://admin:password@postgres:5432/jobscheduler
+      - REDIS_URL=redis://redis:6379
+      - WORKER_ID=app
+      - EMAIL_FROM=prathamverma1234.pv@gmail.com
+      - EMAIL_PASSWORD=oyuc wgnn fppv xhrh
+      - API_KEY=krusta07secretkey123
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   worker1:
     build: .
     command: python -m app.worker
     environment:
-      PYTHONPATH: /app
-      DATABASE_URL: postgresql://admin:password@postgres:5432/jobscheduler
-      REDIS_URL: redis://redis:6379
-      WORKER_ID: worker_1
+      - DATABASE_URL=postgresql://admin:password@postgres:5432/jobscheduler
+      - REDIS_URL=redis://redis:6379
+      - WORKER_ID=worker_1
+      - EMAIL_FROM=prathamverma1234.pv@gmail.com
+      - EMAIL_PASSWORD=oyuc wgnn fppv xhrh
+      - API_KEY=krusta07secretkey123
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - .:/app
 
@@ -42,10 +65,17 @@ services:
     build: .
     command: python -m app.worker
     environment:
-      PYTHONPATH: /app
-      DATABASE_URL: postgresql://admin:password@postgres:5432/jobscheduler
-      REDIS_URL: redis://redis:6379
-      WORKER_ID: worker_2
+      - DATABASE_URL=postgresql://admin:password@postgres:5432/jobscheduler
+      - REDIS_URL=redis://redis:6379
+      - WORKER_ID=worker_2
+      - EMAIL_FROM=prathamverma1234.pv@gmail.com
+      - EMAIL_PASSWORD=oyuc wgnn fppv xhrh
+      - API_KEY=krusta07secretkey123
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - .:/app
 
@@ -53,10 +83,17 @@ services:
     build: .
     command: python -m app.worker
     environment:
-      PYTHONPATH: /app
-      DATABASE_URL: postgresql://admin:password@postgres:5432/jobscheduler
-      REDIS_URL: redis://redis:6379
-      WORKER_ID: worker_3
+      - DATABASE_URL=postgresql://admin:password@postgres:5432/jobscheduler
+      - REDIS_URL=redis://redis:6379
+      - WORKER_ID=worker_3
+      - EMAIL_FROM=prathamverma1234.pv@gmail.com
+      - EMAIL_PASSWORD=oyuc wgnn fppv xhrh
+      - API_KEY=krusta07secretkey123
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - .:/app
 
