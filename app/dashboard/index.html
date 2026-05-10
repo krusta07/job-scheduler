@@ -6,21 +6,18 @@
     <title>Job Scheduler Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: 'Segoe UI', sans-serif;
             background: #0f0f0f;
             color: #ffffff;
             padding: 20px;
         }
-
         h1 {
             text-align: center;
             font-size: 28px;
             margin-bottom: 30px;
             color: #00d4ff;
         }
-
         h2 {
             font-size: 18px;
             margin-bottom: 15px;
@@ -28,17 +25,8 @@
             text-transform: uppercase;
             letter-spacing: 2px;
         }
-
-        .section {
-            margin-bottom: 30px;
-        }
-
-        .cards {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
+        .section { margin-bottom: 30px; }
+        .cards { display: flex; gap: 15px; flex-wrap: wrap; }
         .card {
             background: #1a1a1a;
             border-radius: 12px;
@@ -46,18 +34,8 @@
             min-width: 180px;
             border: 1px solid #333;
         }
-
-        .card h3 {
-            font-size: 14px;
-            color: #888;
-            margin-bottom: 8px;
-        }
-
-        .card .value {
-            font-size: 22px;
-            font-weight: bold;
-        }
-
+        .card h3 { font-size: 14px; color: #888; margin-bottom: 8px; }
+        .card .value { font-size: 22px; font-weight: bold; }
         .online { color: #00ff88; }
         .offline { color: #ff4444; }
         .closed { color: #00ff88; }
@@ -67,7 +45,6 @@
         .failed { color: #ff4444; }
         .running { color: #00d4ff; }
         .pending { color: #ffaa00; }
-
         table {
             width: 100%;
             border-collapse: collapse;
@@ -75,7 +52,6 @@
             border-radius: 12px;
             overflow: hidden;
         }
-
         th {
             background: #222;
             padding: 12px 15px;
@@ -84,29 +60,24 @@
             font-size: 12px;
             text-transform: uppercase;
         }
-
         td {
             padding: 12px 15px;
             border-top: 1px solid #222;
             font-size: 14px;
         }
-
         tr:hover { background: #222; }
-
         .submit-form {
             background: #1a1a1a;
             border-radius: 12px;
             padding: 20px;
             border: 1px solid #333;
         }
-
         .form-row {
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
             margin-bottom: 15px;
         }
-
         select, input {
             background: #222;
             border: 1px solid #444;
@@ -117,7 +88,6 @@
             flex: 1;
             min-width: 150px;
         }
-
         button {
             background: #00d4ff;
             color: #000;
@@ -128,9 +98,7 @@
             font-weight: bold;
             cursor: pointer;
         }
-
-        button:hover { background: #00b8d9; }
-
+        button:hover { opacity: 0.9; }
         .status-dot {
             display: inline-block;
             width: 8px;
@@ -138,20 +106,17 @@
             border-radius: 50%;
             margin-right: 6px;
         }
-
         .dot-green { background: #00ff88; }
         .dot-red { background: #ff4444; }
         .dot-yellow { background: #ffaa00; }
         .dot-blue { background: #00d4ff; }
-
         .last-updated {
             text-align: center;
             color: #444;
             font-size: 12px;
             margin-top: 20px;
         }
-
-        .api-key-input {
+        .api-key-bar {
             background: #1a1a1a;
             border-radius: 12px;
             padding: 15px 20px;
@@ -161,8 +126,7 @@
             gap: 15px;
             align-items: center;
         }
-
-        .api-key-input label {
+        .api-key-bar label {
             color: #888;
             font-size: 14px;
             white-space: nowrap;
@@ -171,78 +135,116 @@
 </head>
 <body>
 
-    <h1>🚀 Distributed Job Scheduler</h1>
+<h1>🚀 Distributed Job Scheduler</h1>
 
-    <div class="api-key-input">
-        <label>🔑 API Key:</label>
-        <input type="password" id="apiKey" placeholder="Enter your API key to submit jobs" />
+<div class="api-key-bar">
+    <label>🔑 API Key:</label>
+    <input type="password" id="apiKey" placeholder="Enter your API key to submit jobs" />
+</div>
+
+<div class="section">
+    <h2>👷 Workers</h2>
+    <div class="cards" id="workers">
+        <div class="card"><h3>Loading...</h3></div>
     </div>
+</div>
 
-    <div class="section">
-        <h2>👷 Workers</h2>
-        <div class="cards" id="workers">
-            <div class="card"><h3>Loading...</h3></div>
+<div class="section">
+    <h2>⚡ Circuit Breakers</h2>
+    <div class="cards" id="breakers">
+        <div class="card"><h3>Loading...</h3></div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>📬 Job Queue</h2>
+    <div class="cards" id="queue">
+        <div class="card"><h3>Loading...</h3></div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>🔥 Demo Controls</h2>
+    <div style="display:flex; gap:15px; flex-wrap:wrap;">
+        <div class="card" style="flex:1; min-width:200px;">
+            <h3>Stress Test</h3>
+            <p style="color:#888; font-size:13px; margin:10px 0;">
+                Submits 30 jobs at once across all 3 workers simultaneously!
+            </p>
+            <button onclick="runStressTest()" style="background:#ff6b35; width:100%; margin-top:10px;">
+                🔥 Run Stress Test (30 Jobs)
+            </button>
+            <div id="stressResult" style="margin-top:10px; font-size:13px;"></div>
+        </div>
+
+        <div class="card" style="flex:1; min-width:200px;">
+            <h3>Saga Pattern Test</h3>
+            <p style="color:#888; font-size:13px; margin:10px 0;">
+                Submits 5 multi-step jobs. Each: resize → PDF → email!
+            </p>
+            <button onclick="runSagaTest()" style="background:#7c3aed; width:100%; margin-top:10px;">
+                🎭 Run Saga Test (5 Jobs)
+            </button>
+            <div id="sagaResult" style="margin-top:10px; font-size:13px;"></div>
+        </div>
+
+        <div class="card" style="flex:1; min-width:200px;">
+            <h3>Circuit Breaker Status</h3>
+            <p style="color:#888; font-size:13px; margin:10px 0;">
+                Check real time status of all 3 circuit breakers!
+            </p>
+            <button onclick="checkBreakers()" style="background:#059669; width:100%; margin-top:10px;">
+                ⚡ Check Breakers
+            </button>
+            <div id="breakerResult" style="margin-top:10px; font-size:13px;"></div>
         </div>
     </div>
+</div>
 
-    <div class="section">
-        <h2>⚡ Circuit Breakers</h2>
-        <div class="cards" id="breakers">
-            <div class="card"><h3>Loading...</h3></div>
+<div class="section">
+    <h2>📋 Submit New Job</h2>
+    <div class="submit-form">
+        <div class="form-row">
+            <select id="jobType">
+                <option value="send_email">Send Email</option>
+                <option value="resize_image">Resize Image (test.jpg)</option>
+                <option value="generate_pdf">Generate PDF</option>
+                <option value="process_report">Process Report (Saga)</option>
+            </select>
+            <select id="jobPriority">
+                <option value="high">High Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="low">Low Priority</option>
+            </select>
         </div>
-    </div>
-
-    <div class="section">
-        <h2>📬 Job Queue</h2>
-        <div class="cards" id="queue">
-            <div class="card"><h3>Loading...</h3></div>
+        <div class="form-row">
+            <input type="text" id="jobEmail" placeholder="Email address" />
+            <input type="text" id="jobTitle" placeholder="Title (for PDF/Report)" />
         </div>
+        <button onclick="submitJob()">Submit Job</button>
+        <span id="submitResult" style="margin-left:15px; font-size:14px;"></span>
     </div>
+</div>
 
-    <div class="section">
-        <h2>📋 Submit New Job</h2>
-        <div class="submit-form">
-            <div class="form-row">
-                <select id="jobType">
-                    <option value="send_email">Send Email</option>
-                    <option value="resize_image">Resize Image</option>
-                    <option value="generate_pdf">Generate PDF</option>
-                    <option value="process_report">Process Report (Saga)</option>
-                </select>
-                <select id="jobPriority">
-                    <option value="high">High Priority</option>
-                    <option value="medium">Medium Priority</option>
-                    <option value="low">Low Priority</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <input type="text" id="jobEmail" placeholder="Email address" />
-                <input type="text" id="jobTitle" placeholder="Title (for PDF/Report)" />
-            </div>
-            <button onclick="submitJob()">Submit Job</button>
-            <span id="submitResult" style="margin-left:15px; font-size:14px;"></span>
-        </div>
-    </div>
+<div class="section">
+    <h2>🕐 Recent Jobs</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Worker</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody id="jobsTable">
+            <tr><td colspan="5">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
 
-    <div class="section">
-        <h2>🕐 Recent Jobs</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Worker</th>
-                    <th>Created</th>
-                </tr>
-            </thead>
-            <tbody id="jobsTable">
-                <tr><td colspan="5">Loading...</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
+<div class="last-updated">Last updated: <span id="lastUpdated">-</span></div>
 
 <script>
     async function fetchData() {
@@ -251,12 +253,10 @@
             const breakers = await fetch("/jobs/breakers/status").then(r => r.json())
             const jobs = await fetch("/jobs/").then(r => r.json())
             const queue = await fetch("/queue/lengths").then(r => r.json())
-
             updateWorkers(workers)
             updateBreakers(breakers)
             updateJobs(jobs)
             updateQueue(queue)
-
             document.getElementById("lastUpdated").textContent = new Date().toLocaleTimeString()
         } catch(e) {
             console.error("Error fetching data:", e)
@@ -356,6 +356,11 @@
         if (email) payload.email = email
         if (title) payload.title = title
         if (type === "resize_image") payload.filename = "test.jpg"
+        if (type === "process_report") {
+            payload.filename = "test.jpg"
+            if (!payload.email) payload.email = "test@example.com"
+            if (!payload.title) payload.title = "My Report"
+        }
 
         try {
             const response = await fetch("/jobs/", {
@@ -371,16 +376,50 @@
 
             if (response.ok) {
                 result.style.color = "#00ff88"
-                result.textContent = "Job #" + data.job.id + " submitted!"
+                result.textContent = "✅ Job #" + data.job.id + " submitted!"
                 fetchData()
             } else {
                 result.style.color = "#ff4444"
-                result.textContent = data.detail || "Error!"
+                result.textContent = "❌ " + (data.detail || "Error!")
             }
         } catch(e) {
             result.style.color = "#ff4444"
             result.textContent = "Failed to submit!"
         }
+    }
+
+    async function runStressTest() {
+        const result = document.getElementById("stressResult")
+        result.style.color = "#ffaa00"
+        result.textContent = "⏳ Submitting 30 jobs..."
+        const response = await fetch("/demo/stress-test")
+        const data = await response.json()
+        result.style.color = "#00ff88"
+        result.textContent = "✅ " + data.total_jobs_submitted + " jobs submitted! Watch queue!"
+        fetchData()
+    }
+
+    async function runSagaTest() {
+        const result = document.getElementById("sagaResult")
+        result.style.color = "#ffaa00"
+        result.textContent = "⏳ Submitting 5 Saga jobs..."
+        const response = await fetch("/demo/saga-test")
+        const data = await response.json()
+        result.style.color = "#00ff88"
+        result.textContent = "✅ 5 Saga jobs submitted! Each has 3 steps!"
+        fetchData()
+    }
+
+    async function checkBreakers() {
+        const result = document.getElementById("breakerResult")
+        const response = await fetch("/demo/circuit-breaker-test")
+        const data = await response.json()
+        const statuses = Object.entries(data.breakers)
+            .map(([name, b]) => name + ": " + b.state)
+            .join(" | ")
+        result.style.color = "#00d4ff"
+        result.textContent = statuses
+        fetchData()
     }
 
     fetchData()
